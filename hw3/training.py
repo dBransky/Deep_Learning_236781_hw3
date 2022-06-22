@@ -85,10 +85,10 @@ class Trainer(abc.ABC):
             actual_num_epochs += 1
             train_result = self.train_epoch(dl_train, **kw)
             train_acc.append(train_result.accuracy)
-            train_loss += train_result.losses
+            train_loss += [sum(train_result.losses) / len(train_result.losses)]
             test_result = self.test_epoch(dl_test, **kw)
             test_acc.append(test_result.accuracy)
-            test_loss += test_result.losses
+            test_loss += [sum(test_result.losses) / len(train_result.losses)]
             # ========================
 
             # TODO:
@@ -99,6 +99,7 @@ class Trainer(abc.ABC):
             #    the checkpoints argument.
             if best_acc is None or test_result.accuracy > best_acc:
                 # ====== YOUR CODE: ======
+                self.save_checkpoint(checkpoints)
                 best_acc = test_result.accuracy
                 epochs_without_improvement = 0
                 # ========================
@@ -273,7 +274,8 @@ class RNNTrainer(Trainer):
         loss = self.loss_fn(y_pred.transpose(1, 2), y)
         loss.backward(retain_graph=True)
         self.optimizer.step()
-        num_correct = y.size()[-1] - torch.count_nonzero(y_pred.argmax(-1) - y)
+        y_pred = y_pred.argmax(dim=-1)
+        num_correct = (y == y_pred).sum()
         self.hidden_state = self.hidden_state.detach()
         # ========================
 
@@ -296,8 +298,8 @@ class RNNTrainer(Trainer):
             # ====== YOUR CODE: ======
             y_pred, _ = self.model(x, self.hidden_state)
             loss = self.loss_fn(y_pred.transpose(1, 2), y)
-            num_correct = y.size()[-1] - torch.count_nonzero(y_pred.argmax(-1) - y)
-            self.hidden_state = self.hidden_state.detach()
+            y_pred = y_pred.argmax(dim=-1)
+            num_correct = (y == y_pred).sum()
             # ========================
 
         return BatchResult(loss.item(), num_correct.item() / seq_len)
